@@ -126,7 +126,7 @@ export default function StrategyPage() {
                         {trade.trade_type.replace('_', ' ')}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">{formatUSD(trade.size)}</TableCell>
+                    <TableCell className="text-right">{trade.size}</TableCell>
                     <TableCell className="text-right">${trade.price.toFixed(4)}</TableCell>
                     <TableCell className="text-right text-text-muted text-xs">
                       {formatTimestamp(trade.timestamp)}
@@ -191,7 +191,7 @@ export default function StrategyPage() {
                           {position.side}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{formatUSD(position.size)}</TableCell>
+                      <TableCell className="text-right">{position.size}</TableCell>
                       <TableCell className="text-right">
                         ${position.entry_price.toFixed(4)}
                       </TableCell>
