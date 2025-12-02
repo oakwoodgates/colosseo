@@ -63,7 +63,7 @@ export default function HomePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Trades</CardTitle>
-              <Link to="/strategies" className="text-sm text-accent hover:text-accent-light">
+              <Link to="/trades" className="text-sm text-accent hover:text-accent-light">
                 View all
               </Link>
             </div>
