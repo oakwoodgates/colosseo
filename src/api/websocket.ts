@@ -1,6 +1,13 @@
-import type { WSMessage, Candle, Trade, Position } from './types'
+import type { WSMessage, Trade, Position, PriceHistoricalData, PriceCandleData } from './types'
 
 type Channel = 'trades' | 'positions' | 'portfolio' | 'prices' | 'signals'
+
+interface SubscribeOptions {
+  channels: Channel[]
+  history?: number
+  starlistingIds?: number[]
+  strategyId?: number
+}
 
 interface WSOptions {
   onMessage?: (msg: WSMessage) => void
@@ -11,13 +18,22 @@ interface WSOptions {
   reconnectInterval?: number
 }
 
+type MessageListener = (msg: WSMessage) => void
+type ConnectionListener = () => void
+
 export class WebSocketManager {
   private ws: WebSocket | null = null
   private url: string
   private options: WSOptions
   private channels: Set<Channel> = new Set()
+  private channelHistory: Map<Channel, number> = new Map()
+  private starlistingIds: Set<number> = new Set()
+  private strategyId: number | null = null
   private reconnectTimer: number | null = null
   private isIntentionalClose = false
+  private messageListeners: Set<MessageListener> = new Set()
+  private openListeners: Set<ConnectionListener> = new Set()
+  private closeListeners: Set<ConnectionListener> = new Set()
 
   constructor(url: string, options: WSOptions = {}) {
     this.url = url
@@ -28,17 +44,42 @@ export class WebSocketManager {
     }
   }
 
+  addMessageListener(listener: MessageListener): () => void {
+    this.messageListeners.add(listener)
+    return () => this.messageListeners.delete(listener)
+  }
+
+  addOpenListener(listener: ConnectionListener): () => void {
+    this.openListeners.add(listener)
+    return () => this.openListeners.delete(listener)
+  }
+
+  addCloseListener(listener: ConnectionListener): () => void {
+    this.closeListeners.add(listener)
+    return () => this.closeListeners.delete(listener)
+  }
+
   connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) return
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      return
+    }
 
     this.isIntentionalClose = false
     this.ws = new WebSocket(this.url)
 
     this.ws.onopen = () => {
       this.options.onOpen?.()
-      // Resubscribe to channels on reconnect
+      this.openListeners.forEach(listener => listener())
+      // Resubscribe to channels on reconnect with stored options
       if (this.channels.size > 0) {
-        this.subscribe([...this.channels])
+        const channelsArray = [...this.channels]
+        const maxHistory = Math.max(...channelsArray.map(ch => this.channelHistory.get(ch) || 0))
+        this.subscribe({
+          channels: channelsArray,
+          history: maxHistory > 0 ? maxHistory : undefined,
+          starlistingIds: this.starlistingIds.size > 0 ? [...this.starlistingIds] : undefined,
+          strategyId: this.strategyId ?? undefined,
+        })
       }
     }
 
@@ -46,13 +87,15 @@ export class WebSocketManager {
       try {
         const msg = JSON.parse(event.data) as WSMessage
         this.options.onMessage?.(msg)
-      } catch {
-        console.error('Failed to parse WebSocket message')
+        this.messageListeners.forEach(listener => listener(msg))
+      } catch (e) {
+        console.error('[WebSocketManager] Failed to parse message:', e)
       }
     }
 
     this.ws.onclose = () => {
       this.options.onClose?.()
+      this.closeListeners.forEach(listener => listener())
       if (this.options.reconnect && !this.isIntentionalClose) {
         this.scheduleReconnect()
       }
@@ -73,8 +116,22 @@ export class WebSocketManager {
     this.ws = null
   }
 
-  subscribe(channels: Channel[], history?: number): void {
-    channels.forEach((ch) => this.channels.add(ch))
+  subscribe(options: SubscribeOptions): void {
+    const { channels, history, starlistingIds, strategyId } = options
+
+    channels.forEach((ch) => {
+      this.channels.add(ch)
+      if (history !== undefined) {
+        this.channelHistory.set(ch, history)
+      }
+    })
+
+    if (starlistingIds) {
+      starlistingIds.forEach(id => this.starlistingIds.add(id))
+    }
+    if (strategyId !== undefined) {
+      this.strategyId = strategyId
+    }
 
     if (this.ws?.readyState === WebSocket.OPEN) {
       const msg: Record<string, unknown> = {
@@ -83,6 +140,12 @@ export class WebSocketManager {
       }
       if (history !== undefined) {
         msg.history = history
+      }
+      if (starlistingIds && starlistingIds.length > 0) {
+        msg.starlisting_ids = starlistingIds
+      }
+      if (strategyId !== undefined) {
+        msg.filters = { strategy_id: strategyId }
       }
       this.ws.send(JSON.stringify(msg))
     }
@@ -128,13 +191,21 @@ export function getWebSocketManager(): WebSocketManager {
 
 // Type guards for WebSocket messages
 export function isTradeMessage(msg: WSMessage): msg is WSMessage & { data: Trade } {
-  return msg.channel === 'trades'
+  return msg.type === 'trade.new'
 }
 
 export function isPositionMessage(msg: WSMessage): msg is WSMessage & { data: Position } {
-  return msg.channel === 'positions'
+  return msg.type === 'position.opened' || msg.type === 'position.closed' || msg.type === 'position.pnl_update'
 }
 
-export function isPriceMessage(msg: WSMessage): msg is WSMessage & { data: Candle | Candle[] } {
-  return msg.channel === 'prices'
+export function isPortfolioMessage(msg: WSMessage): boolean {
+  return msg.type === 'portfolio.update'
+}
+
+export function isPriceHistoricalMessage(msg: WSMessage): msg is WSMessage & { data: PriceHistoricalData } {
+  return msg.type === 'price.historical'
+}
+
+export function isPriceCandleMessage(msg: WSMessage): msg is WSMessage & { data: PriceCandleData } {
+  return msg.type === 'price.candle'
 }

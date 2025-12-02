@@ -173,12 +173,45 @@ export interface LeaderboardResponse {
 // WebSocket types
 export interface WSMessage {
   type: string
-  channel: string
+  channel?: string
+  timestamp?: number
   data: unknown
 }
 
+// Raw candle from Nailsage WebSocket (time is ISO string)
+export interface RawCandle {
+  time: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume?: number
+}
+
+// Processed candle for charts (time is unix timestamp)
 export interface Candle {
   time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume?: number
+}
+
+// Price message data types
+export interface PriceHistoricalData {
+  starlisting_id: number
+  coin: string
+  interval: string
+  count: number
+  candles: RawCandle[]
+}
+
+export interface PriceCandleData {
+  starlisting_id: number
+  coin: string
+  interval: string
+  time: string
   open: number
   high: number
   low: number

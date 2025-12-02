@@ -89,7 +89,7 @@ export default function StrategyPage() {
           <CardTitle>Price Chart</CardTitle>
         </CardHeader>
         <PriceChart
-          strategyId={strategyId}
+          starlistingId={strategy.starlisting_id}
           interval={strategy.interval}
           trades={tradesData?.trades}
         />

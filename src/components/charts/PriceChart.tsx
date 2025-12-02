@@ -1,44 +1,47 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createChartAdapter, type ChartAdapter } from './ChartProvider'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import type { Candle, Trade } from '../../api/types'
 
 interface PriceChartProps {
-  strategyId: number
+  starlistingId: number
   interval: string
   trades?: Trade[]
   height?: number
 }
 
-export function PriceChart({ strategyId: _strategyId, interval: _interval, trades, height = 400 }: PriceChartProps) {
-  // _strategyId and _interval are available for future filtering by strategy/interval
+export function PriceChart({ starlistingId, interval: _interval, trades, height = 400 }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ChartAdapter | null>(null)
-  const [candles, setCandles] = useState<Candle[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const initialDataLoaded = useRef(false)
+
+  // Memoize arrays to prevent infinite re-renders
+  const channels = useMemo(() => ['prices'] as ('prices')[], [])
+  const starlistingIds = useMemo(() => [starlistingId], [starlistingId])
 
   // Handle initial price data from WebSocket
   const handlePriceData = useCallback((data: Candle[]) => {
-    setCandles(data)
+    console.log('[PriceChart] Received historical data:', data.length, 'candles')
+    if (chartRef.current) {
+      chartRef.current.setData(data)
+      initialDataLoaded.current = true
+    }
     setIsLoading(false)
   }, [])
 
-  // Handle real-time price updates
+  // Handle real-time price updates - use updateCandle to preserve zoom
   const handlePriceUpdate = useCallback((candle: Candle) => {
-    setCandles((prev) => {
-      const existing = prev.findIndex((c) => c.time === candle.time)
-      if (existing >= 0) {
-        const updated = [...prev]
-        updated[existing] = candle
-        return updated
-      }
-      return [...prev, candle]
-    })
+    console.log('[PriceChart] Real-time update:', candle.time)
+    if (chartRef.current && initialDataLoaded.current) {
+      chartRef.current.updateCandle(candle)
+    }
   }, [])
 
   // Connect to WebSocket for price data
   useWebSocket({
-    channels: ['prices'],
+    channels,
+    starlistingIds,
     history: 500,
     onPriceData: handlePriceData,
     onPriceUpdate: handlePriceUpdate,
@@ -51,11 +54,16 @@ export function PriceChart({ strategyId: _strategyId, interval: _interval, trade
     const container = containerRef.current
     const width = container.clientWidth
 
-    chartRef.current = createChartAdapter({
-      container,
-      width,
-      height,
-    })
+    try {
+      chartRef.current = createChartAdapter({
+        container,
+        width,
+        height,
+      })
+    } catch (err) {
+      console.error('[PriceChart] Failed to create chart:', err)
+      return
+    }
 
     // Handle resize
     const resizeObserver = new ResizeObserver((entries) => {
@@ -71,13 +79,6 @@ export function PriceChart({ strategyId: _strategyId, interval: _interval, trade
     }
   }, [height])
 
-  // Update chart data when candles change
-  useEffect(() => {
-    if (chartRef.current && candles.length > 0) {
-      chartRef.current.setData(candles)
-    }
-  }, [candles])
-
   // Update markers when trades change
   useEffect(() => {
     if (chartRef.current && trades && trades.length > 0) {
@@ -85,20 +86,14 @@ export function PriceChart({ strategyId: _strategyId, interval: _interval, trade
     }
   }, [trades])
 
-  if (isLoading && candles.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center bg-bg-tertiary rounded"
-        style={{ height }}
-      >
-        <div className="text-text-muted">
-          Connecting to price feed...
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div ref={containerRef} className="w-full rounded overflow-hidden" style={{ height }} />
+    <div className="relative w-full rounded overflow-hidden" style={{ height }}>
+      <div ref={containerRef} className="w-full h-full" />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-bg-tertiary">
+          <div className="text-text-muted">Loading price data...</div>
+        </div>
+      )}
+    </div>
   )
 }

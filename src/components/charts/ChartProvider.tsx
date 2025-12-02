@@ -1,4 +1,4 @@
-import { createChart, Time } from 'lightweight-charts'
+import { createChart, Time, CandlestickSeries, createSeriesMarkers } from 'lightweight-charts'
 import type { Candle, Trade } from '../../api/types'
 
 export interface ChartAdapter {
@@ -57,31 +57,21 @@ export function createChartAdapter(options: CreateChartOptions): ChartAdapter {
     },
   })
 
-  // Use type assertion to bypass v5 API complexity
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartAny = chart as any
-  const candlestickSeries = chartAny.addCandlestickSeries
-    ? chartAny.addCandlestickSeries({
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        borderDownColor: '#ef4444',
-        borderUpColor: '#22c55e',
-        wickDownColor: '#ef4444',
-        wickUpColor: '#22c55e',
-      })
-    : chartAny.addSeries({
-        type: 'Candlestick',
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        borderDownColor: '#ef4444',
-        borderUpColor: '#22c55e',
-        wickDownColor: '#ef4444',
-        wickUpColor: '#22c55e',
-      })
+  const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    upColor: '#22c55e',
+    downColor: '#ef4444',
+    borderDownColor: '#ef4444',
+    borderUpColor: '#22c55e',
+    wickDownColor: '#ef4444',
+    wickUpColor: '#22c55e',
+  })
+
+  // Create markers plugin for trade markers
+  const markersPlugin = createSeriesMarkers(candlestickSeries, [])
 
   function convertCandle(candle: Candle): CandleData {
     return {
-      time: (candle.time / 1000) as Time, // Convert ms to seconds
+      time: candle.time as Time, // Already in seconds from useWebSocket
       open: candle.open,
       high: candle.high,
       low: candle.low,
@@ -117,7 +107,7 @@ export function createChartAdapter(options: CreateChartOptions): ChartAdapter {
         })
         .sort((a, b) => (a.time as number) - (b.time as number))
 
-      candlestickSeries.setMarkers(markers)
+      markersPlugin.setMarkers(markers)
     },
 
     resize(newWidth: number, newHeight: number) {

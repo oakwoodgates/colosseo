@@ -1,67 +1,112 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getWebSocketManager, isTradeMessage, isPositionMessage, isPriceMessage } from '../api/websocket'
-import type { WSMessage, Candle } from '../api/types'
+import {
+  getWebSocketManager,
+  isTradeMessage,
+  isPositionMessage,
+  isPortfolioMessage,
+  isPriceHistoricalMessage,
+  isPriceCandleMessage,
+} from '../api/websocket'
+import type { WSMessage, Candle, RawCandle, PriceCandleData } from '../api/types'
 
 type Channel = 'trades' | 'positions' | 'portfolio' | 'prices' | 'signals'
 
 interface UseWebSocketOptions {
   channels: Channel[]
   history?: number
+  starlistingIds?: number[]
+  strategyId?: number
   onPriceData?: (candles: Candle[]) => void
   onPriceUpdate?: (candle: Candle) => void
 }
 
+// Convert ISO timestamp to unix seconds for Lightweight Charts
+function parseTime(isoTime: string): number {
+  return Math.floor(new Date(isoTime).getTime() / 1000)
+}
+
+// Convert raw candle (ISO time) to chart candle (unix time)
+function convertCandle(raw: RawCandle): Candle {
+  return {
+    time: parseTime(raw.time),
+    open: raw.open,
+    high: raw.high,
+    low: raw.low,
+    close: raw.close,
+    volume: raw.volume,
+  }
+}
+
+// Convert price.candle data to Candle
+function convertPriceCandleData(data: PriceCandleData): Candle {
+  return {
+    time: parseTime(data.time),
+    open: data.open,
+    high: data.high,
+    low: data.low,
+    close: data.close,
+    volume: data.volume,
+  }
+}
+
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { channels, history, onPriceData, onPriceUpdate } = options
+  const { channels, history, starlistingIds, strategyId, onPriceData, onPriceUpdate } = options
   const [isConnected, setIsConnected] = useState(false)
   const queryClient = useQueryClient()
   const wsManager = useRef(getWebSocketManager())
 
-  const handleMessage = useCallback(
-    (msg: WSMessage) => {
-      if (isTradeMessage(msg)) {
-        // Invalidate trades queries when new trade arrives
-        queryClient.invalidateQueries({ queryKey: ['trades'] })
-      } else if (isPositionMessage(msg)) {
-        // Invalidate positions queries
-        queryClient.invalidateQueries({ queryKey: ['positions'] })
-      } else if (isPriceMessage(msg)) {
-        // Handle price data
-        if (Array.isArray(msg.data)) {
-          onPriceData?.(msg.data)
-        } else {
-          onPriceUpdate?.(msg.data)
-        }
-      } else if (msg.channel === 'portfolio') {
-        // Invalidate portfolio queries
-        queryClient.invalidateQueries({ queryKey: ['portfolio'] })
-      }
-    },
-    [queryClient, onPriceData, onPriceUpdate],
-  )
+  // Use ref for callbacks to avoid re-registering listeners when they change
+  const callbacksRef = useRef({ onPriceData, onPriceUpdate, starlistingIds })
+  callbacksRef.current = { onPriceData, onPriceUpdate, starlistingIds }
 
   useEffect(() => {
     const manager = wsManager.current
 
-    // Set up message handler
-    const originalOnMessage = manager['options'].onMessage
-    manager['options'].onMessage = (msg: WSMessage) => {
-      originalOnMessage?.(msg)
-      handleMessage(msg)
-    }
+    // Add message listener
+    const removeMessageListener = manager.addMessageListener((msg: WSMessage) => {
+      const { onPriceData, onPriceUpdate, starlistingIds } = callbacksRef.current
 
-    manager['options'].onOpen = () => setIsConnected(true)
-    manager['options'].onClose = () => setIsConnected(false)
+      if (isTradeMessage(msg)) {
+        queryClient.invalidateQueries({ queryKey: ['trades'] })
+      } else if (isPositionMessage(msg)) {
+        queryClient.invalidateQueries({ queryKey: ['positions'] })
+      } else if (isPortfolioMessage(msg)) {
+        queryClient.invalidateQueries({ queryKey: ['portfolio'] })
+      } else if (isPriceHistoricalMessage(msg)) {
+        const historicalData = msg.data
+        const candles = historicalData.candles.map(convertCandle)
+        onPriceData?.(candles)
+      } else if (isPriceCandleMessage(msg)) {
+        // Filter by starlisting_id if we have a filter
+        if (starlistingIds && starlistingIds.length > 0) {
+          if (!starlistingIds.includes(msg.data.starlisting_id)) {
+            return
+          }
+        }
+        const candle = convertPriceCandleData(msg.data)
+        onPriceUpdate?.(candle)
+      }
+    })
 
-    // Connect and subscribe
+    const removeOpenListener = manager.addOpenListener(() => {
+      setIsConnected(true)
+    })
+
+    const removeCloseListener = manager.addCloseListener(() => {
+      setIsConnected(false)
+    })
+
     manager.connect()
-    manager.subscribe(channels, history)
+    manager.subscribe({ channels, history, starlistingIds, strategyId })
 
     return () => {
+      removeMessageListener()
+      removeOpenListener()
+      removeCloseListener()
       manager.unsubscribe(channels)
     }
-  }, [channels, history, handleMessage])
+  }, [channels, history, starlistingIds, strategyId, queryClient])
 
   return { isConnected }
 }
