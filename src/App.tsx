@@ -2,6 +2,7 @@ import { Routes, Route, Link } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import StrategiesPage from './pages/StrategiesPage'
 import StrategyPage from './pages/StrategyPage'
+import TradesPage from './pages/TradesPage'
 
 function App() {
   return (
@@ -14,6 +15,9 @@ function App() {
           <Link to="/strategies" className="text-text-secondary hover:text-text-primary">
             Strategies
           </Link>
+          <Link to="/trades" className="text-text-secondary hover:text-text-primary">
+            Trades
+          </Link>
         </div>
       </nav>
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -21,6 +25,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/strategies" element={<StrategiesPage />} />
           <Route path="/strategies/:id" element={<StrategyPage />} />
+          <Route path="/trades" element={<TradesPage />} />
         </Routes>
       </main>
     </div>
