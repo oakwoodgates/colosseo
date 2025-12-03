@@ -11,6 +11,19 @@ export function formatUSD(value: number): string {
   return `${sign}$${absValue.toFixed(2)}`
 }
 
+export function formatBankroll(value: number, decimals = 2): string {
+  const absValue = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (absValue >= 1_000_000 && 0 === decimals) {
+    return `$${(absValue / 1_000_000).toFixed(0)}M`
+  }
+  if (absValue >= 1_000 && 0 === decimals) {
+    return `$${(absValue / 1_000).toFixed(0)}K`
+  }
+  return `${sign}$${absValue.toFixed(decimals)}`
+}
+
+
 export function formatPercent(value: number): string {
   const sign = value > 0 ? '+' : ''
   return `${sign}${value.toFixed(2)}%`

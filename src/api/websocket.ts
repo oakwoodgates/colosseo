@@ -1,4 +1,14 @@
-import type { WSMessage, Trade, Position, PriceHistoricalData, PriceCandleData } from './types'
+import type {
+  WSMessage,
+  Trade,
+  Position,
+  PriceHistoricalData,
+  PriceCandleData,
+  FundingHistoricalData,
+  FundingUpdateData,
+  OIHistoricalData,
+  OIUpdateData,
+} from './types'
 
 type Channel = 'trades' | 'positions' | 'portfolio' | 'prices' | 'signals'
 
@@ -208,4 +218,20 @@ export function isPriceHistoricalMessage(msg: WSMessage): msg is WSMessage & { d
 
 export function isPriceCandleMessage(msg: WSMessage): msg is WSMessage & { data: PriceCandleData } {
   return msg.type === 'price.candle'
+}
+
+export function isFundingHistoricalMessage(msg: WSMessage): msg is WSMessage & { data: FundingHistoricalData } {
+  return msg.type === 'price.historical_funding'
+}
+
+export function isFundingUpdateMessage(msg: WSMessage): msg is WSMessage & { data: FundingUpdateData } {
+  return msg.type === 'price.funding'
+}
+
+export function isOIHistoricalMessage(msg: WSMessage): msg is WSMessage & { data: OIHistoricalData } {
+  return msg.type === 'price.historical_oi'
+}
+
+export function isOIUpdateMessage(msg: WSMessage): msg is WSMessage & { data: OIUpdateData } {
+  return msg.type === 'price.open_interest'
 }

@@ -4,11 +4,11 @@ import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { Stat } from '../components/ui/Stat'
 import { Badge } from '../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table'
-import { PriceChart } from '../components/charts/PriceChart'
+import { PriceChart, FundingChart, OIChart } from '../components/charts'
 import { useStrategyWithStats } from '../hooks/useStrategies'
 import { useStrategyTrades } from '../hooks/useTrades'
 import { useStrategyPositions } from '../hooks/usePositions'
-import { formatUSD, formatPercent, formatTimestamp, getPnlTrend } from '../utils/format'
+import { formatUSD, formatBankroll, formatPercent, formatTimestamp, getPnlTrend } from '../utils/format'
 
 export default function StrategyPage() {
   const { id } = useParams<{ id: string }>()
@@ -61,7 +61,7 @@ export default function StrategyPage() {
 
       {/* Stats */}
       <Card>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           <Stat
             label="Total P&L"
             value={formatUSD(strategy.total_pnl_usd)}
@@ -80,10 +80,16 @@ export default function StrategyPage() {
           />
           <Stat label="Total Trades" value={strategy.total_trades} />
           <Stat label="Open Positions" value={strategy.open_positions} />
+          <Stat
+            label="Bankroll"
+            value={formatBankroll(strategy.current_bankroll)}
+            subValue={`/ ${formatBankroll(strategy.initial_bankroll, 0)}`}
+            trend={getPnlTrend(strategy.current_bankroll - strategy.initial_bankroll)}
+          />
         </div>
       </Card>
 
-      {/* Chart */}
+      {/* Price Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Price Chart</CardTitle>
@@ -94,6 +100,22 @@ export default function StrategyPage() {
           trades={tradesData?.trades}
         />
       </Card>
+
+      {/* Market Data Charts */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Funding Rate</CardTitle>
+          </CardHeader>
+          <FundingChart starlistingId={strategy.starlisting_id} height={200} />
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Open Interest</CardTitle>
+          </CardHeader>
+          <OIChart starlistingId={strategy.starlisting_id} height={200} />
+        </Card>
+      </div>
 
       {/* Trades and Positions */}
       <div className="grid lg:grid-cols-2 gap-6">

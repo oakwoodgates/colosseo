@@ -7,8 +7,23 @@ import {
   isPortfolioMessage,
   isPriceHistoricalMessage,
   isPriceCandleMessage,
+  isFundingHistoricalMessage,
+  isFundingUpdateMessage,
+  isOIHistoricalMessage,
+  isOIUpdateMessage,
 } from '../api/websocket'
-import type { WSMessage, Candle, RawCandle, PriceCandleData } from '../api/types'
+import type {
+  WSMessage,
+  Candle,
+  RawCandle,
+  PriceCandleData,
+  FundingRate,
+  RawFundingRate,
+  FundingUpdateData,
+  OpenInterestPoint,
+  RawOpenInterestPoint,
+  OIUpdateData,
+} from '../api/types'
 
 type Channel = 'trades' | 'positions' | 'portfolio' | 'prices' | 'signals'
 
@@ -19,6 +34,10 @@ interface UseWebSocketOptions {
   strategyId?: number
   onPriceData?: (candles: Candle[]) => void
   onPriceUpdate?: (candle: Candle) => void
+  onFundingData?: (data: FundingRate[]) => void
+  onFundingUpdate?: (data: FundingRate) => void
+  onOIData?: (data: OpenInterestPoint[]) => void
+  onOIUpdate?: (data: OpenInterestPoint) => void
 }
 
 // Convert ISO timestamp to unix seconds for Lightweight Charts
@@ -50,22 +69,91 @@ function convertPriceCandleData(data: PriceCandleData): Candle {
   }
 }
 
+// Convert raw funding rate to chart-ready format
+function convertFundingRate(raw: RawFundingRate): FundingRate {
+  return {
+    time: parseTime(raw.time),
+    funding_rate: raw.funding_rate,
+    mark_price: raw.mark_price,
+  }
+}
+
+// Convert funding update data
+function convertFundingUpdate(data: FundingUpdateData): FundingRate {
+  return {
+    time: parseTime(data.time),
+    funding_rate: data.funding_rate,
+  }
+}
+
+// Convert raw OI point to chart-ready format
+function convertOIPoint(raw: RawOpenInterestPoint): OpenInterestPoint {
+  return {
+    time: parseTime(raw.time),
+    open_interest: raw.open_interest,
+    notional_value: raw.notional_value,
+  }
+}
+
+// Convert OI update data
+function convertOIUpdate(data: OIUpdateData): OpenInterestPoint {
+  return {
+    time: parseTime(data.time),
+    open_interest: data.open_interest,
+  }
+}
+
 export function useWebSocket(options: UseWebSocketOptions) {
-  const { channels, history, starlistingIds, strategyId, onPriceData, onPriceUpdate } = options
+  const {
+    channels,
+    history,
+    starlistingIds,
+    strategyId,
+    onPriceData,
+    onPriceUpdate,
+    onFundingData,
+    onFundingUpdate,
+    onOIData,
+    onOIUpdate,
+  } = options
   const [isConnected, setIsConnected] = useState(false)
   const queryClient = useQueryClient()
   const wsManager = useRef(getWebSocketManager())
 
   // Use ref for callbacks to avoid re-registering listeners when they change
-  const callbacksRef = useRef({ onPriceData, onPriceUpdate, starlistingIds })
-  callbacksRef.current = { onPriceData, onPriceUpdate, starlistingIds }
+  const callbacksRef = useRef({
+    onPriceData,
+    onPriceUpdate,
+    onFundingData,
+    onFundingUpdate,
+    onOIData,
+    onOIUpdate,
+    starlistingIds,
+  })
+  callbacksRef.current = {
+    onPriceData,
+    onPriceUpdate,
+    onFundingData,
+    onFundingUpdate,
+    onOIData,
+    onOIUpdate,
+    starlistingIds,
+  }
 
   useEffect(() => {
     const manager = wsManager.current
 
     // Add message listener
     const removeMessageListener = manager.addMessageListener((msg: WSMessage) => {
-      const { onPriceData, onPriceUpdate, starlistingIds } = callbacksRef.current
+      const {
+        onPriceData,
+        onPriceUpdate,
+        onFundingData,
+        onFundingUpdate,
+        onOIData,
+        onOIUpdate,
+        starlistingIds,
+      } = callbacksRef.current
 
       if (isTradeMessage(msg)) {
         queryClient.invalidateQueries({ queryKey: ['trades'] })
@@ -86,6 +174,42 @@ export function useWebSocket(options: UseWebSocketOptions) {
         }
         const candle = convertPriceCandleData(msg.data)
         onPriceUpdate?.(candle)
+      } else if (isFundingHistoricalMessage(msg)) {
+        // Filter by starlisting_id if we have a filter
+        if (starlistingIds && starlistingIds.length > 0) {
+          if (!starlistingIds.includes(msg.data.starlisting_id)) {
+            return
+          }
+        }
+        const fundingRates = msg.data.funding_rates.map(convertFundingRate)
+        onFundingData?.(fundingRates)
+      } else if (isFundingUpdateMessage(msg)) {
+        // Filter by starlisting_id if we have a filter
+        if (starlistingIds && starlistingIds.length > 0) {
+          if (!starlistingIds.includes(msg.data.starlisting_id)) {
+            return
+          }
+        }
+        const fundingRate = convertFundingUpdate(msg.data)
+        onFundingUpdate?.(fundingRate)
+      } else if (isOIHistoricalMessage(msg)) {
+        // Filter by starlisting_id if we have a filter
+        if (starlistingIds && starlistingIds.length > 0) {
+          if (!starlistingIds.includes(msg.data.starlisting_id)) {
+            return
+          }
+        }
+        const oiPoints = msg.data.open_interest.map(convertOIPoint)
+        onOIData?.(oiPoints)
+      } else if (isOIUpdateMessage(msg)) {
+        // Filter by starlisting_id if we have a filter
+        if (starlistingIds && starlistingIds.length > 0) {
+          if (!starlistingIds.includes(msg.data.starlisting_id)) {
+            return
+          }
+        }
+        const oiPoint = convertOIUpdate(msg.data)
+        onOIUpdate?.(oiPoint)
       }
     })
 

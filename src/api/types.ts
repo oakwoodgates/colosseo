@@ -7,6 +7,8 @@ export interface Strategy {
   interval: string
   model_id: string | null
   is_active: boolean
+  initial_bankroll: number
+  current_bankroll: number
   created_at: number | null
   updated_at: number | null
 }
@@ -217,4 +219,56 @@ export interface PriceCandleData {
   low: number
   close: number
   volume?: number
+}
+
+// Funding rate types
+export interface RawFundingRate {
+  time: string
+  funding_rate: number
+  mark_price?: number
+}
+
+export interface FundingRate {
+  time: number
+  funding_rate: number
+  mark_price?: number
+}
+
+export interface FundingHistoricalData {
+  starlisting_id: number
+  coin: string
+  count: number
+  funding_rates: RawFundingRate[]
+}
+
+export interface FundingUpdateData {
+  starlisting_id: number
+  funding_rate: number
+  time: string
+}
+
+// Open Interest types
+export interface RawOpenInterestPoint {
+  time: string
+  open_interest: number
+  notional_value?: number
+}
+
+export interface OpenInterestPoint {
+  time: number
+  open_interest: number
+  notional_value?: number
+}
+
+export interface OIHistoricalData {
+  starlisting_id: number
+  coin: string
+  count: number
+  open_interest: RawOpenInterestPoint[]
+}
+
+export interface OIUpdateData {
+  starlisting_id: number
+  open_interest: number
+  time: string
 }
