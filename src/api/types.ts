@@ -272,3 +272,22 @@ export interface OIUpdateData {
   open_interest: number
   time: string
 }
+
+// Model types
+export interface ModelMetadata {
+  model_id: string
+  strategy_name: string
+  strategy_timeframe: string
+  version: string
+  model_type: string
+  trained_at: string
+  training_dataset_path: string
+  training_date_range: [string, string]
+  validation_date_range: [string, string]
+  feature_config: Record<string, unknown>
+  hyperparameters: Record<string, unknown>
+  target_config: Record<string, unknown>
+  validation_metrics: Record<string, number>
+  notes: string | null
+  tags: string[]
+}

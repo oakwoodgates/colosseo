@@ -8,6 +8,7 @@ import { PriceChart, FundingChart, OIChart } from '../components/charts'
 import { useStrategyWithStats } from '../hooks/useStrategies'
 import { useStrategyTrades } from '../hooks/useTrades'
 import { useStrategyPositions } from '../hooks/usePositions'
+import { useModel } from '../hooks/useModels'
 import { formatUSD, formatBankroll, formatPercent, formatTimestamp, getPnlTrend } from '../utils/format'
 
 export default function StrategyPage() {
@@ -23,6 +24,7 @@ export default function StrategyPage() {
     positionTab,
     50,
   )
+  const { data: model, isLoading: modelLoading } = useModel(strategy?.model_id ?? null)
 
   if (strategyLoading) {
     return <div className="text-text-muted">Loading strategy...</div>
@@ -229,6 +231,163 @@ export default function StrategyPage() {
             <div className="p-4 text-text-muted">No {positionTab} positions</div>
           )}
         </Card>
+      </div>
+
+      {/* Model Information */}
+      <div className="space-y-6">
+        <h2 className="text-xl font-semibold">Model Information</h2>
+
+        {modelLoading ? (
+          <Card>
+            <div className="p-4 text-text-muted">Loading model...</div>
+          </Card>
+        ) : !model ? (
+          <Card>
+            <div className="p-4 text-text-muted">No model assigned</div>
+          </Card>
+        ) : (
+          <>
+            {/* Model Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Model Overview</CardTitle>
+              </CardHeader>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 pt-0">
+                <div>
+                  <div className="text-text-muted text-sm">Model ID</div>
+                  <div className="font-mono text-sm">{model.model_id}</div>
+                </div>
+                <div>
+                  <div className="text-text-muted text-sm">Type</div>
+                  <div>{model.model_type}</div>
+                </div>
+                <div>
+                  <div className="text-text-muted text-sm">Version</div>
+                  <div>{model.version}</div>
+                </div>
+                <div>
+                  <div className="text-text-muted text-sm">Timeframe</div>
+                  <div>{model.strategy_timeframe}</div>
+                </div>
+                <div>
+                  <div className="text-text-muted text-sm">Trained At</div>
+                  <div>{new Date(model.trained_at).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-text-muted text-sm">Dataset Path</div>
+                  <div className="font-mono text-xs truncate">{model.training_dataset_path}</div>
+                </div>
+                {model.tags && model.tags.length > 0 && (
+                  <div>
+                    <div className="text-text-muted text-sm">Tags</div>
+                    <div className="flex gap-1 flex-wrap">
+                      {model.tags.map((tag) => (
+                        <Badge key={tag} variant="default">{tag}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {model.notes && (
+                  <div className="col-span-2">
+                    <div className="text-text-muted text-sm">Notes</div>
+                    <div className="text-sm">{model.notes}</div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Validation Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Validation Metrics</CardTitle>
+              </CardHeader>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 pt-0">
+                {Object.entries(model.validation_metrics).map(([key, value]) => (
+                  <div key={key}>
+                    <div className="text-text-muted text-sm">{key}</div>
+                    <div className="font-mono">
+                      {typeof value === 'number' ? value.toFixed(4) : String(value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Training Date Ranges */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Training Period</CardTitle>
+                </CardHeader>
+                <div className="p-4 pt-0">
+                  <div className="flex gap-4">
+                    <div>
+                      <div className="text-text-muted text-sm">Start</div>
+                      <div>{model.training_date_range[0]}</div>
+                    </div>
+                    <div>
+                      <div className="text-text-muted text-sm">End</div>
+                      <div>{model.training_date_range[1]}</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Validation Period</CardTitle>
+                </CardHeader>
+                <div className="p-4 pt-0">
+                  <div className="flex gap-4">
+                    <div>
+                      <div className="text-text-muted text-sm">Start</div>
+                      <div>{model.validation_date_range[0]}</div>
+                    </div>
+                    <div>
+                      <div className="text-text-muted text-sm">End</div>
+                      <div>{model.validation_date_range[1]}</div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Hyperparameters */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Hyperparameters</CardTitle>
+              </CardHeader>
+              <div className="p-4 pt-0">
+                <pre className="bg-bg-tertiary p-3 rounded text-sm overflow-x-auto">
+                  {JSON.stringify(model.hyperparameters, null, 2)}
+                </pre>
+              </div>
+            </Card>
+
+            {/* Feature Config */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Feature Configuration</CardTitle>
+              </CardHeader>
+              <div className="p-4 pt-0">
+                <pre className="bg-bg-tertiary p-3 rounded text-sm overflow-x-auto">
+                  {JSON.stringify(model.feature_config, null, 2)}
+                </pre>
+              </div>
+            </Card>
+
+            {/* Target Config */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Target Configuration</CardTitle>
+              </CardHeader>
+              <div className="p-4 pt-0">
+                <pre className="bg-bg-tertiary p-3 rounded text-sm overflow-x-auto">
+                  {JSON.stringify(model.target_config, null, 2)}
+                </pre>
+              </div>
+            </Card>
+          </>
+        )}
       </div>
     </div>
   )
