@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { Stat } from '../components/ui/Stat'
@@ -9,6 +9,7 @@ import { useStrategyWithStats } from '../hooks/useStrategies'
 import { useStrategyTrades } from '../hooks/useTrades'
 import { useStrategyPositions } from '../hooks/usePositions'
 import { useModel } from '../hooks/useModels'
+import { useWebSocket } from '../hooks/useWebSocket'
 import { formatUSD, formatBankroll, formatPercent, formatTimestamp, getPnlTrend } from '../utils/format'
 
 export default function StrategyPage() {
@@ -25,6 +26,10 @@ export default function StrategyPage() {
     50,
   )
   const { data: model, isLoading: modelLoading } = useModel(strategy?.model_id ?? null)
+
+  // Subscribe to WebSocket for real-time updates - this will invalidate strategy stats
+  const channels = useMemo(() => ['trades', 'positions'] as const, [])
+  useWebSocket({ channels: [...channels], strategyId })
 
   if (strategyLoading) {
     return <div className="text-text-muted">Loading strategy...</div>

@@ -157,8 +157,16 @@ export function useWebSocket(options: UseWebSocketOptions) {
 
       if (isTradeMessage(msg)) {
         queryClient.invalidateQueries({ queryKey: ['trades'] })
+        // Also refresh strategy stats since trades affect P&L, win rate, etc.
+        if (strategyId) {
+          queryClient.invalidateQueries({ queryKey: ['strategy', strategyId, 'stats'] })
+        }
       } else if (isPositionMessage(msg)) {
         queryClient.invalidateQueries({ queryKey: ['positions'] })
+        // Also refresh strategy stats since positions affect open count, unrealized P&L
+        if (strategyId) {
+          queryClient.invalidateQueries({ queryKey: ['strategy', strategyId, 'stats'] })
+        }
       } else if (isPortfolioMessage(msg)) {
         queryClient.invalidateQueries({ queryKey: ['portfolio'] })
       } else if (isPriceHistoricalMessage(msg)) {
