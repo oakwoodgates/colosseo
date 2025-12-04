@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
-import { createChart, LineSeries, Time } from 'lightweight-charts'
+import { createChart, BaselineSeries, Time } from 'lightweight-charts'
 import { useWebSocket } from '../../hooks/useWebSocket'
 import type { FundingRate } from '../../api/types'
 
@@ -81,8 +81,14 @@ export function FundingChart({ starlistingId, height = 200 }: FundingChartProps)
       },
     })
 
-    seriesRef.current = chartRef.current.addSeries(LineSeries, {
-      color: '#3b82f6',
+    seriesRef.current = chartRef.current.addSeries(BaselineSeries, {
+      baseValue: { type: 'price', price: 0 },
+      topLineColor: '#22c55e',
+      topFillColor1: 'rgba(34, 197, 94, 0.2)',
+      topFillColor2: 'rgba(34, 197, 94, 0.05)',
+      bottomLineColor: '#ef4444',
+      bottomFillColor1: 'rgba(239, 68, 68, 0.05)',
+      bottomFillColor2: 'rgba(239, 68, 68, 0.2)',
       lineWidth: 2,
       priceFormat: {
         type: 'custom',
