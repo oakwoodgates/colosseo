@@ -1,3 +1,19 @@
+// Arena types
+export interface Arena {
+  id: number
+  starlisting_id: number
+  trading_pair: string
+  interval: string
+  coin: string
+  coin_name: string
+  quote: string
+  quote_name: string
+  exchange: string
+  exchange_name: string
+  market_type: string
+  market_name: string
+}
+
 // Strategy types
 export interface Strategy {
   id: number
@@ -11,6 +27,7 @@ export interface Strategy {
   current_bankroll: number
   created_at: number | null
   updated_at: number | null
+  arena?: Arena
 }
 
 export interface StrategyWithStats extends Strategy {

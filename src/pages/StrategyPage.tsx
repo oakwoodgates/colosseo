@@ -111,7 +111,12 @@ export default function StrategyPage() {
       {/* Price Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>{strategy.interval} Price Chart</CardTitle>
+          <CardTitle>
+            {strategy.interval}{' '}
+            {strategy.arena
+              ? `${strategy.arena.trading_pair} ${strategy.arena.exchange_name} ${strategy.arena.market_name}`
+              : 'Price Chart'}
+          </CardTitle>
         </CardHeader>
         <PriceChart
           starlistingId={strategy.starlisting_id}
