@@ -46,17 +46,29 @@ export default function StrategyPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-3">
+          {/*
+          <div>
             <Link to="/strategies" className="text-text-muted hover:text-text-primary">
               &larr;
             </Link>
+          </div> */}
+          <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{strategy.strategy_name}</h1>
             <Badge variant={strategy.is_active ? 'success' : 'default'}>
               {strategy.is_active ? 'Active' : 'Inactive'}
             </Badge>
           </div>
           <div className="text-text-secondary mt-1">
-            {strategy.interval} interval &bull; Version {strategy.version}
+            {modelLoading ? (
+              <div className="">Loading model...</div>
+            ) : !model ? (
+              <div className="">No model assigned</div>
+            ) : (
+              <div className="">
+                <div className="font-mono text-sm">{model.model_id}</div>
+                <div className="">{model.notes}</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -94,7 +106,7 @@ export default function StrategyPage() {
       {/* Price Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Price Chart</CardTitle>
+          <CardTitle>{strategy.interval} Price Chart</CardTitle>
         </CardHeader>
         <PriceChart
           starlistingId={strategy.starlisting_id}
@@ -254,10 +266,6 @@ export default function StrategyPage() {
               </CardHeader>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 pt-0">
                 <div>
-                  <div className="text-text-muted text-sm">Model ID</div>
-                  <div className="font-mono text-sm">{model.model_id}</div>
-                </div>
-                <div>
                   <div className="text-text-muted text-sm">Type</div>
                   <div>{model.model_type}</div>
                 </div>
@@ -273,10 +281,6 @@ export default function StrategyPage() {
                   <div className="text-text-muted text-sm">Trained At</div>
                   <div>{new Date(model.trained_at).toLocaleString()}</div>
                 </div>
-                <div>
-                  <div className="text-text-muted text-sm">Dataset Path</div>
-                  <div className="font-mono text-xs truncate">{model.training_dataset_path}</div>
-                </div>
                 {model.tags && model.tags.length > 0 && (
                   <div>
                     <div className="text-text-muted text-sm">Tags</div>
@@ -285,12 +289,6 @@ export default function StrategyPage() {
                         <Badge key={tag} variant="default">{tag}</Badge>
                       ))}
                     </div>
-                  </div>
-                )}
-                {model.notes && (
-                  <div className="col-span-2">
-                    <div className="text-text-muted text-sm">Notes</div>
-                    <div className="text-sm">{model.notes}</div>
                   </div>
                 )}
               </div>
