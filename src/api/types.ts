@@ -308,3 +308,45 @@ export interface ModelMetadata {
   notes: string | null
   tags: string[]
 }
+
+// Popular Arena types (from /api/v1/arenas/popular)
+export interface Coin {
+  id: number
+  symbol: string
+  name: string
+}
+
+export interface Exchange {
+  id: number
+  slug: string
+  name: string
+}
+
+export interface MarketType {
+  id: number
+  type: string
+  name: string
+}
+
+export interface PopularArena {
+  id: number
+  starlisting_id: number
+  trading_pair: string
+  trading_pair_id: number | null
+  coin: Coin
+  quote: Coin
+  exchange: Exchange
+  market_type: MarketType
+  interval: string
+  interval_seconds: number
+  is_active: boolean
+  strategies: number[]
+  strategy_count: number
+  created_at: number | null
+  updated_at: number | null
+}
+
+export interface PopularArenaListResponse {
+  arenas: PopularArena[]
+  total: number
+}
