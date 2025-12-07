@@ -86,7 +86,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium">{formatUSD(trade.size)}</div>
+                    <div className="font-medium">{trade.size}</div>
                     <div className="text-sm text-text-muted">
                       {formatRelativeTime(trade.timestamp)}
                     </div>
