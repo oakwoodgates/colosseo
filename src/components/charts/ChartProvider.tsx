@@ -1,4 +1,4 @@
-import { createChart, Time, CandlestickSeries, createSeriesMarkers } from 'lightweight-charts'
+import { createChart, Time, CandlestickSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
 import type { Candle, Trade } from '../../api/types'
 
 export interface ChartAdapter {
@@ -29,6 +29,12 @@ interface MarkerData {
   color: string
   shape: 'arrowUp' | 'arrowDown'
   text: string
+}
+
+interface VolumeData {
+  time: Time
+  value: number
+  color: string
 }
 
 export function createChartAdapter(options: CreateChartOptions): ChartAdapter {
@@ -66,6 +72,17 @@ export function createChartAdapter(options: CreateChartOptions): ChartAdapter {
     wickUpColor: '#22c55e',
   })
 
+  // Add volume histogram series
+  const volumeSeries = chart.addSeries(HistogramSeries, {
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+  })
+
+  // Configure volume scale at bottom 30% of chart
+  chart.priceScale('volume').applyOptions({
+    scaleMargins: { top: 0.7, bottom: 0 },
+  })
+
   // Create markers plugin for trade markers
   const markersPlugin = createSeriesMarkers(candlestickSeries, [])
 
@@ -79,15 +96,26 @@ export function createChartAdapter(options: CreateChartOptions): ChartAdapter {
     }
   }
 
+  function convertVolume(candle: Candle): VolumeData {
+    const isUp = candle.close >= candle.open
+    return {
+      time: candle.time as Time,
+      value: candle.volume ?? 0,
+      color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+    }
+  }
+
   return {
     setData(candles: Candle[]) {
-      const data = candles.map(convertCandle).sort((a, b) => (a.time as number) - (b.time as number))
-      candlestickSeries.setData(data)
+      const sortedCandles = [...candles].sort((a, b) => a.time - b.time)
+      candlestickSeries.setData(sortedCandles.map(convertCandle))
+      volumeSeries.setData(sortedCandles.map(convertVolume))
       chart.timeScale().fitContent()
     },
 
     updateCandle(candle: Candle) {
       candlestickSeries.update(convertCandle(candle))
+      volumeSeries.update(convertVolume(candle))
     },
 
     setMarkers(trades: Trade[]) {
